@@ -1,0 +1,53 @@
+{
+  "requestsFinished": 1,
+  "requestsFailed": 1,
+  "requestsRetries": 1,
+  "requestsFailedPerMinute": 7,
+  "requestsFinishedPerMinute": 7,
+  "requestMinDurationMillis": 3795,
+  "requestMaxDurationMillis": 3795,
+  "requestTotalFailedDurationMillis": 1285,
+  "requestTotalFinishedDurationMillis": 3795,
+  "crawlerStartedAt": "2026-09-27T06:07:59.706Z",
+  "crawlerFinishedAt": "2026-09-27T06:08:07.811Z",
+  "statsPersistedAt": "2026-09-27T06:08:07.812Z",
+  "crawlerRuntimeMillis": 8186,
+  "crawlerLastStartTimestamp": 1790489279626,
+  "requestRetryHistogram": [
+    1,
+    null,
+    null,
+    1
+  ],
+  "statsId": "0",
+  "requestAvgFailedDurationMillis": 1285,
+  "requestAvgFinishedDurationMillis": 3795,
+  "requestTotalDurationMillis": 5080,
+  "requestsTotal": 2,
+  "requestsWithStatusCode": {
+    "200": 1,
+    "429": 4
+  },
+  "errors": {
+    "/Users/lds1830/Library/Mobile Documents/com~apple~CloudDocs/Downloads/N8n/digital-school/node_modules/@crawlee/basic/internals/basic-crawler.js:954:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 429 status code.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "/Users/lds1830/Library/Mobile Documents/com~apple~CloudDocs/Downloads/N8n/digital-school/node_modules/@crawlee/basic/internals/basic-crawler.js:954:19": {
+      "missing error code": {
+        "Error": {
+          "Request blocked - received 429 status code.": {
+            "count": 3
+          }
+        }
+      }
+    }
+  }
+}

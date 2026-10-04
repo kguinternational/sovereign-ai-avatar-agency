@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  role      String   // "STUDENT" or "GUIDE"
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  
+  // Relations for Students
+  progress  Progress[]
+  lifeSkills LifeSkill[]
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  name        String   // "Math", "Reading", etc.
+  description String?
+  modules     Module[]
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  title       String
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  order       Int
+  questions   Question[]
+}
+
+model Question {
+  id          String   @id @default(uuid())
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id])
+  content     String
+  answer      String
+  options     String?  // JSON string for multiple choice
+}
+
+model Progress {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id])
+  moduleId    String
+  mastery     Float    @default(0.0) // 0 to 100, needs 90% to pass
+  status      String   // "NOT_STARTED", "IN_PROGRESS", "MASTERED"
+  updatedAt   DateTime @updatedAt
+}
+
+model LifeSkill {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id])
+  title       String
+  description String
+  status      String   // "PROPOSED", "IN_PROGRESS", "COMPLETED"
+}
