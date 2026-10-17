@@ -11,6 +11,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^7.10.0",
+    "@runwayml/avatars-react": "^0.17.0",
     "crawlee": "^3.18.1",
     "dotenv": "^18.0.4",
     "lucide-react": "^1.48.0",
@@ -20,6 +21,7 @@
     "playwright": "^1.63.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "square": "^46.0.0",
     "stripe": "^22.6.2"
   },
   "devDependencies": {

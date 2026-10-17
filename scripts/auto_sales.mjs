@@ -13,9 +13,8 @@ const openai = new OpenAI({
 });
 
 // --- CONFIGURATION ---
-const VAPI_PHONE = "(555) 123-4567"; 
 // Put your actual nonprofit email below so Apple Mail sends it from the right account:
-const NONPROFIT_EMAIL = "info@jccoffeyfoundation.org"; 
+const NONPROFIT_EMAIL = "jccoffey@jccoffeyfoundation.org"; 
 
 // Read leads from a JSON file
 const leads = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'scripts/leads.json'), 'utf-8'));
@@ -25,9 +24,9 @@ You must use psychology and dopamine triggers: create a curiosity gap, agitate a
 
 Write the email using this exact structure:
 1. Hook: Identify the pain of losing money. ("If you miss one emergency call this weekend, you just lost a $500+ invoice to a competitor.")
-2. Instant Solution: "I built an AI Voice Receptionist for [Business Name] that answers on the first ring, sounds exactly like a real human, and books jobs straight into your CRM."
-3. The Offer: "Agencies charge $5,000 for this. Because we are a nonprofit, we deploy it for a flat $1,000 tax-deductible donation."
-4. Instant Gratification CTA: "Call ${VAPI_PHONE} right now to hear the AI answer the phone. If you love it, you can deploy it instantly at jccoffeyfoundation.org/demo."
+2. Instant Solution: "I built a live 24/7 AI Voice Receptionist for [Business Name] that answers on the first ring, sounds like a real local dispatcher, and books emergency jobs straight into your calendar."
+3. The Offer: "Agencies charge $5,000 for this. Because we are a nonprofit, we deploy it for a flat $1,000 tax-deductible contribution."
+4. Instant Gratification CTA: "Test your live AI voice receptionist right in your browser and deploy it in 60 seconds at https://jccoffeyfoundation.org/demo"
 
 Keep it under 80 words. Punchy, aggressive value, and highly exciting. Sign off as "The JC Coffey Foundation Team".`;
 
