@@ -72,7 +72,8 @@ async function synthesizeHumanAudioAndVideo(
   text: string,
   avatarId: string,
   wantVideo: boolean,
-  customImageBase64?: string | null
+  customImageBase64?: string | null,
+  grokVoice?: string
 ): Promise<{ audioDataUrl: string | null; videoDataUrl: string | null; renderMs?: number }> {
   // 1. PRIMARY: Local Apple M5 Neural Voice + Wav2Lip-GAN CoreML GPU Server
   try {
@@ -84,6 +85,7 @@ async function synthesizeHumanAudioAndVideo(
         text,
         speed: 1.04,
         avatarId: avatarId || 'sarah-webcam',
+        grokVoice: grokVoice || '',
         wantVideo,
         customImageBase64: customImageBase64 || null,
       }),
@@ -150,6 +152,7 @@ export async function POST(req: Request) {
       businessName,
       personaName,
       avatarId,
+      grokVoice,
       wantVideo,
       customImageBase64,
       messages,
@@ -286,7 +289,8 @@ CRITICAL RULES FOR REALTIME CONVERSATION:
           replyText,
           avatarId || 'sarah-webcam',
           Boolean(wantVideo),
-          customImageBase64
+          customImageBase64,
+          grokVoice
         )
       : { audioDataUrl: null, videoDataUrl: null, renderMs: 0 };
 

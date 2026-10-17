@@ -21,15 +21,27 @@ WAV2LIP_PATH = os.path.join(os.getcwd(), "models", "wav2lip", "wav2lip_gan.onnx"
 print("⚡ [1/3] Loading Kokoro-82M Neural Voice Engine onto Apple M5 Unified Memory...")
 kokoro = Kokoro(MODEL_PATH, VOICES_PATH)
 
+# Build Grok Voice 3.0 5-Character Neural Voice Library in M5 GPU RAM
+GROK_VOICES = {}
 try:
-    heart_style = kokoro.get_voice_style("af_heart")
-    bella_style = kokoro.get_voice_style("af_bella")
-    CUSTOM_FEMALE_VOICE = (heart_style * 0.70) + (bella_style * 0.30)
-    CUSTOM_MALE_VOICE = kokoro.get_voice_style("am_michael")
-    print("✅ Blended Custom Voices active in M5 GPU RAM!")
-except Exception:
-    CUSTOM_FEMALE_VOICE = "af_heart"
-    CUSTOM_MALE_VOICE = "am_michael"
+    af_heart = kokoro.get_voice_style("af_heart")
+    af_bella = kokoro.get_voice_style("af_bella")
+    af_nicole = kokoro.get_voice_style("af_nicole")
+    af_sarah = kokoro.get_voice_style("af_sarah")
+    am_michael = kokoro.get_voice_style("am_michael")
+    am_adam = kokoro.get_voice_style("am_adam")
+    am_fenrir = kokoro.get_voice_style("am_fenrir")
+
+    GROK_VOICES = {
+        "ara": (af_heart * 0.70) + (af_bella * 0.30),     # Ara: Upbeat, warm female dispatcher
+        "eve": (af_nicole * 0.65) + (af_heart * 0.35),    # Eve: Calm, executive concierge female
+        "sal": (af_sarah * 0.60) + (af_bella * 0.40),     # Sal: Smooth, fast-paced dispatcher
+        "rex": (am_michael * 0.75) + (am_adam * 0.25),    # Rex: Confident operations director male
+        "leo": (am_fenrir * 0.60) + (am_michael * 0.40),  # Leo: Deep, authoritative executive male
+    }
+    print(f"✅ Grok Voice 3.0 Neural Library ({', '.join(GROK_VOICES.keys())}) active in M5 GPU RAM!")
+except Exception as e:
+    print("Voice blend fallback:", e)
 
 print("⚡ [2/3] Loading Wav2Lip-GAN Neural Lip-Sync Engine onto Apple M5 CoreML GPU...")
 wav2lip_sess = ort.InferenceSession(
@@ -37,7 +49,6 @@ wav2lip_sess = ort.InferenceSession(
     providers=["CoreMLExecutionProvider", "CPUExecutionProvider"],
 )
 
-# Fixed batch size of 16 ensures CoreML compiles the graph ONCE at startup and NEVER recompiles!
 FIXED_BATCH = 16
 wav2lip_sess.run(
     None,
@@ -52,16 +63,16 @@ print("✅ Wav2Lip-GAN CoreML Fixed-Batch (B=16) Warm & Ready (Zero Recompile, 6
 yy, xx = np.mgrid[0:96, 0:96]
 dist = np.sqrt(((xx - 48.0) / 36.0) ** 2 + ((yy - 68.0) / 24.0) ** 2)
 MOUTH_MASK_96 = np.clip(1.0 - np.clip((dist - 0.55) / 0.45, 0.0, 1.0), 0.0, 1.0)[..., np.newaxis].astype(np.float32)
-MOUTH_MASK_96[:44, :, :] = 0.0  # Keep upper face/eyes untouched by mouth mask
+MOUTH_MASK_96[:44, :, :] = 0.0
 
 AVATAR_CACHE = {}
 PRESET_CONFIGS = {
-    "sarah-webcam": ("public/avatars/d3.jpg", (0.18, 0.91, 0.19, 0.81), "public/avatars/d3_idle.mp4"),
-    "elena-vip": ("public/avatars/sarah_thumb.jpg", (0.15, 0.43, 0.34, 0.63), "public/avatars/sarah_idle.mp4"),
-    "marcus-ops": ("public/avatars/d19.jpg", (0.16, 0.90, 0.18, 0.82), "public/avatars/d19_idle.mp4"),
+    "sarah-webcam": ("public/avatars/d3.jpg", (0.18, 0.91, 0.19, 0.81), "public/avatars/d3_idle.mp4", "ara"),
+    "elena-vip": ("public/avatars/sarah_thumb.jpg", (0.15, 0.43, 0.34, 0.63), "public/avatars/sarah_idle.mp4", "eve"),
+    "marcus-ops": ("public/avatars/d19.jpg", (0.16, 0.90, 0.18, 0.82), "public/avatars/d19_idle.mp4", "rex"),
 }
 
-for avatar_id, (img_rel_path, (ry1, ry2, rx1, rx2), idle_rel_path) in PRESET_CONFIGS.items():
+for avatar_id, (img_rel_path, (ry1, ry2, rx1, rx2), idle_rel_path, default_voice) in PRESET_CONFIGS.items():
     full_path = os.path.join(os.getcwd(), img_rel_path)
     if os.path.exists(full_path):
         pil_img = Image.open(full_path).convert("RGB")
@@ -88,6 +99,7 @@ for avatar_id, (img_rel_path, (ry1, ry2, rx1, rx2), idle_rel_path) in PRESET_CON
             "face_96": face_96,
             "mask": mask_resized,
             "idle_path": os.path.join(os.getcwd(), idle_rel_path),
+            "default_voice": default_voice,
         }
 
 print(f"✅ [3/3] Pre-cached {len(AVATAR_CACHE)} HD Avatar Tensors in Unified Memory!")
@@ -123,7 +135,6 @@ def audio_to_mel_chunks(samples_24k: np.ndarray, sr_orig: int = 24000, fps: int 
 
 
 def run_wav2lip_fixed_batch(mel_batch: np.ndarray, single_vid: np.ndarray) -> np.ndarray:
-    """Runs Wav2Lip-GAN using fixed B=16 batches so CoreML never recompiles its graph."""
     num_frames = len(mel_batch)
     vid_fixed = np.repeat(single_vid, FIXED_BATCH, axis=0)
     outputs = []
@@ -139,87 +150,6 @@ def run_wav2lip_fixed_batch(mel_batch: np.ndarray, single_vid: np.ndarray) -> np
 
     preds = np.concatenate(outputs, axis=0)
     return (np.transpose(preds, (0, 2, 3, 1)) * 255.0).clip(0, 255).astype(np.uint8)
-
-
-def generate_calm_idle_videos():
-    """Generates calm, natural breathing listening videos (zero winking/grimacing) for each preset."""
-    fps = 20
-    num_frames = 60  # 3.0s seamless loop
-    silent_samples = np.zeros(int(24000 * 3.0), dtype=np.float32)
-    mel_batch = audio_to_mel_chunks(silent_samples, sr_orig=24000, fps=fps)[:num_frames]
-
-    for avatar_id, entry in AVATAR_CACHE.items():
-        bgr = entry["bgr"]
-        y1, y2, x1, x2 = entry["box"]
-        face_96 = entry["face_96"]
-        mask = entry["mask"]
-        idle_path = entry["idle_path"]
-        H, W, _ = bgr.shape
-        box_w, box_h = x2 - x1, y2 - y1
-
-        img_masked = face_96.copy()
-        img_masked[48:, :] = 0
-        single_vid = np.concatenate((img_masked, face_96), axis=2) / 255.0
-        single_vid = np.transpose(single_vid, (2, 0, 1))[np.newaxis, ...].astype(np.float32)
-
-        preds = run_wav2lip_fixed_batch(mel_batch, single_vid)
-        orig_crop = bgr[y1:y2, x1:x2].astype(np.float32)
-
-        cmd = [
-            "/opt/homebrew/bin/ffmpeg",
-            "-y",
-            "-f",
-            "rawvideo",
-            "-vcodec",
-            "rawvideo",
-            "-s",
-            f"{W}x{H}",
-            "-pix_fmt",
-            "bgr24",
-            "-r",
-            str(fps),
-            "-i",
-            "-",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "ultrafast",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            idle_path,
-        ]
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        total_f = len(preds)
-        for idx in range(total_f):
-            pred_96 = preds[idx]
-            pred_resized = np.array(
-                Image.fromarray(pred_96[:, :, ::-1]).resize((box_w, box_h), Image.Resampling.BILINEAR)
-            )[:, :, ::-1].astype(np.float32)
-            blended_crop = (pred_resized * mask + orig_crop * (1.0 - mask)).astype(np.uint8)
-            frame = bgr.copy()
-            frame[y1:y2, x1:x2] = blended_crop
-
-            # Subtle natural breathing motion (smooth sine wave)
-            dy = int(round(math.sin(2.0 * math.pi * idx / total_f) * 1.5))
-            if dy != 0:
-                shifted = np.zeros_like(frame)
-                if dy > 0:
-                    shifted[dy:, :] = frame[:-dy, :]
-                    shifted[:dy, :] = frame[0:1, :]
-                else:
-                    shifted[:dy, :] = frame[-dy:, :]
-                    shifted[dy:, :] = frame[-1:, :]
-                frame = shifted
-
-            proc.stdin.write(frame.tobytes())
-        proc.stdin.close()
-        proc.wait()
-    print("✅ Calm, natural-breathing Idle Listening Videos verified!")
-
-
-generate_calm_idle_videos()
 
 
 def generate_wav2lip_mp4(samples: np.ndarray, sr: int, avatar_id: str, custom_img_b64: str = None) -> bytes:
@@ -261,13 +191,13 @@ def generate_wav2lip_mp4(samples: np.ndarray, sr: int, avatar_id: str, custom_im
     single_vid = np.concatenate((img_masked, face_96), axis=2) / 255.0
     single_vid = np.transpose(single_vid, (2, 0, 1))[np.newaxis, ...].astype(np.float32)
 
-    # Run Wav2Lip-GAN on Apple M5 CoreML GPU with fixed B=16 batches (sub-second, zero recompile!)
     preds = run_wav2lip_fixed_batch(mel_batch, single_vid)
 
     tmp_wav = "/tmp/m5_wav2lip_audio.wav"
     tmp_mp4 = "/tmp/m5_wav2lip_out.mp4"
     sf.write(tmp_wav, samples, sr, format="WAV")
 
+    # Apple M5 VideoToolbox Hardware H.264 Encoder (with ultrafast libx264 fallback)
     cmd = [
         "/opt/homebrew/bin/ffmpeg",
         "-y",
@@ -286,11 +216,9 @@ def generate_wav2lip_mp4(samples: np.ndarray, sr: int, avatar_id: str, custom_im
         "-i",
         tmp_wav,
         "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-crf",
-        "20",
+        "h264_videotoolbox",
+        "-b:v",
+        "1200k",
         "-pix_fmt",
         "yuv420p",
         "-c:a",
@@ -305,18 +233,17 @@ def generate_wav2lip_mp4(samples: np.ndarray, sr: int, avatar_id: str, custom_im
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     orig_crop = bgr[y1:y2, x1:x2].astype(np.float32)
-    for idx in range(num_frames):
+    inv_mask = 1.0 - mask
+    for idx in range(len(preds)):
         pred_96 = preds[idx]
-        # Crisp unsharp mask on the generated mouth & teeth before high-res blending
-        pil_mouth = Image.fromarray(pred_96[:, :, ::-1]).resize((box_w, box_h), Image.Resampling.BICUBIC)
-        pil_mouth = pil_mouth.filter(ImageFilter.UnsharpMask(radius=1.2, percent=125, threshold=2))
+        pil_mouth = Image.fromarray(pred_96[:, :, ::-1]).resize((box_w, box_h), Image.Resampling.BILINEAR)
+        pil_mouth = pil_mouth.filter(ImageFilter.UnsharpMask(radius=1.1, percent=120, threshold=2))
         pred_resized = np.array(pil_mouth)[:, :, ::-1].astype(np.float32)
 
-        blended_crop = (pred_resized * mask + orig_crop * (1.0 - mask)).astype(np.uint8)
+        blended_crop = (pred_resized * mask + orig_crop * inv_mask).astype(np.uint8)
         frame = bgr.copy()
         frame[y1:y2, x1:x2] = blended_crop
 
-        # Natural conversational micro-head rhythm while speaking
         dy = int(round(math.sin(idx * 0.22) * 1.5))
         if dy != 0:
             shifted = np.zeros_like(frame)
@@ -350,10 +277,14 @@ class VoiceGPUHandler(BaseHTTPRequestHandler):
         text = data.get("text", "Hello, how can I help you today?")
         speed = float(data.get("speed", 1.03))
         avatar_id = data.get("avatarId", "sarah-webcam")
+        grok_voice = data.get("grokVoice", "").lower()
         custom_img_b64 = data.get("customImageBase64")
         want_video = bool(data.get("wantVideo", False)) or self.path == "/wav2lip"
 
-        voice_style = CUSTOM_MALE_VOICE if avatar_id == "marcus-ops" else CUSTOM_FEMALE_VOICE
+        entry = AVATAR_CACHE.get(avatar_id) or AVATAR_CACHE["sarah-webcam"]
+        voice_key = grok_voice if grok_voice in GROK_VOICES else entry.get("default_voice", "ara")
+        voice_style = GROK_VOICES.get(voice_key, "af_heart")
+
         samples, sample_rate = kokoro.create(
             text,
             voice=voice_style,
@@ -371,6 +302,7 @@ class VoiceGPUHandler(BaseHTTPRequestHandler):
                     "audioBase64": base64.b64encode(wav_buf.getvalue()).decode("utf-8"),
                     "videoBase64": base64.b64encode(mp4_bytes).decode("utf-8"),
                     "renderMs": round((time.time() - t0) * 1000),
+                    "voiceUsed": voice_key,
                 }
             ).encode("utf-8")
             self.send_response(200)
@@ -397,5 +329,5 @@ class VoiceGPUHandler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(os.environ.get("VOICE_GPU_PORT", "8099"))
     server = HTTPServer(("127.0.0.1", port), VoiceGPUHandler)
-    print(f"🎙️ Apple M5 Neural Voice + Wav2Lip-GAN GPU Server listening on http://127.0.0.1:{port}")
+    print(f"🎙️ Apple M5 Neural Voice + Wav2Lip-GAN VideoToolbox GPU Server listening on http://127.0.0.1:{port}")
     server.serve_forever()

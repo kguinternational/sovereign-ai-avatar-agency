@@ -411,10 +411,11 @@ export default function DemoPage() {
       let activeSpeechChunks: Float32Array[] = [];
       let speakingNow = false;
       let silenceStartedAt = 0;
+      let bargeInCount = 0;
 
       processor.onaudioprocess = (e) => {
         if (!callActiveRef.current) return;
-        if (isSpeakingRef.current || isProcessingRef.current) {
+        if (isProcessingRef.current) {
           setMicLevel(0);
           return;
         }
@@ -426,6 +427,33 @@ export default function DemoPage() {
           sumSq += input[i] * input[i];
         }
         const rms = Math.sqrt(sumSq / input.length);
+
+        // Grok Voice 3.0 Full-Duplex Barge-In: If caller speaks loudly over the avatar, interrupt immediately!
+        if (isSpeakingRef.current) {
+          if (rms > 0.085) {
+            bargeInCount++;
+            if (bargeInCount >= 2) {
+              bargeInCount = 0;
+              if (audioRef.current) {
+                try {
+                  audioRef.current.pause();
+                } catch {}
+              }
+              if (talkingVideoRef.current) {
+                talkingVideoRef.current.pause();
+              }
+              isSpeakingRef.current = false;
+              setIsSpeaking(false);
+            } else {
+              return;
+            }
+          } else {
+            bargeInCount = 0;
+            setMicLevel(0);
+            return;
+          }
+        }
+
         const level = Math.min(100, Math.round(rms * 450));
         setMicLevel(level);
 
