@@ -14,11 +14,14 @@ export async function POST(req: Request) {
     const { businessName, email, website, paymentMethod, tier = 'basic', avatarPersona = 'Sarah (Executive Dispatcher)' } = body;
 
     const isAvatarTier = tier === 'avatar';
-    const priceUsd = isAvatarTier ? 2500 : 1000;
+    const isCoFounderTier = tier === 'cofounder';
+    const priceUsd = isAvatarTier ? 2500 : isCoFounderTier ? 10 : 1000;
     const priceCents = BigInt(priceUsd * 100);
     const productName = isAvatarTier
-      ? `Tier 2: 1:1 Interactive Video Avatar Twin (Runway GWM-1) for ${businessName}`
-      : `Tier 1: 24/7 AI Voice Receptionist for ${businessName}`;
+      ? `Tier 2: 1:1 Interactive Video Avatar Twin (Wav2Lip-GAN M5) for ${businessName || 'Client'}`
+      : isCoFounderTier
+      ? `AI Co-Founder Club: $10 Founding Member Spot Deposit ($29/mo Locked Forever) for ${businessName || 'Founder'}`
+      : `Tier 1: 24/7 AI Voice Receptionist for ${businessName || 'Client'}`;
 
     console.log(`[ONBOARDING] Initiating ${tier.toUpperCase()} ($${priceUsd}) deployment for ${businessName} via ${paymentMethod}...`);
 

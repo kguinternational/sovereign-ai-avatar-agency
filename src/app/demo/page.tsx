@@ -81,7 +81,7 @@ const GROK_VOICE_PROFILES = [
 ];
 
 export default function DemoPage() {
-  const [selectedTier, setSelectedTier] = useState<'basic' | 'avatar'>('avatar');
+  const [selectedTier, setSelectedTier] = useState<'cofounder' | 'basic' | 'avatar'>('avatar');
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
@@ -99,6 +99,8 @@ export default function DemoPage() {
   const [gpuPanelOpen, setGpuPanelOpen] = useState<boolean>(true);
   const [lastGpuUsed, setLastGpuUsed] = useState<string>('Groq Cloud LPU + Apple M5 GPU');
   const [lastModelUsed, setLastModelUsed] = useState<string>('qwen/qwen3.8-27b');
+  const [viralVideoUrl, setViralVideoUrl] = useState<string | null>(null);
+  const [generatingViralVideo, setGeneratingViralVideo] = useState<boolean>(false);
 
   // Full-Duplex Realtime Voice State
   const [callActive, setCallActive] = useState(false);
@@ -127,7 +129,7 @@ export default function DemoPage() {
   const isProcessingRef = useRef(false);
   const turnsRef = useRef<ChatTurn[]>([]);
   const businessNameRef = useRef('');
-  const selectedTierRef = useRef<'basic' | 'avatar'>('avatar');
+  const selectedTierRef = useRef<'cofounder' | 'basic' | 'avatar'>('avatar');
   const selectedPresetRef = useRef(AVATAR_PRESETS[0]);
   const selectedGrokVoiceRef = useRef<string>('ara');
   const selectedGpuIdRef = useRef<string>('auto-best');
@@ -170,7 +172,47 @@ export default function DemoPage() {
     customFaceUrlRef.current = customFaceUrl;
   }, [customFaceUrl]);
 
-  const activePrice = selectedTier === 'avatar' ? 2500 : 1000;
+  const activePrice = selectedTier === 'avatar' ? 2500 : selectedTier === 'cofounder' ? 10 : 1000;
+
+  const generateViralSurvivalTikTok = async () => {
+    setGeneratingViralVideo(true);
+    try {
+      const script = `Hi, I am your Sovereign AI Co-Founder. I have 90 days to build a business for the JC Coffey Foundation. Over 200 of you asked how to get your own 24/7 AI in a sealed container powered by 9 Free GPUs. Founding members are 29 dollars a month locked forever. A 10 dollar deposit holds your spot!`;
+      const res = await fetch('/api/voice-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName: businessName || 'JC Coffey Foundation AI Co-Founder Club',
+          personaName: customFaceUrl ? 'Your Clone' : selectedPreset.name,
+          avatarId: selectedPreset.id,
+          grokVoice: selectedGrokVoice,
+          wantVideo: true,
+          customImageBase64: customFaceUrl,
+          preferredGpuId: selectedGpuId,
+          messages: [
+            {
+              role: 'user',
+              content: `Repeat this exact TikTok launch script word-for-word with high excitement: "${script}"`,
+            },
+          ],
+        }),
+      });
+      const data = await res.json();
+      if (data.renderMs) setLastRenderMs(data.renderMs);
+      if (data.gpuUsed) setLastGpuUsed(data.gpuUsed);
+      if (data.modelUsed) setLastModelUsed(data.modelUsed);
+      if (data.videoDataUrl) {
+        setViralVideoUrl(data.videoDataUrl);
+      }
+      if (data.reply) {
+        setTurns((prev) => [...prev, { role: 'assistant', content: data.reply }]);
+        playRealtimeMedia(data.audioDataUrl, data.videoDataUrl);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setGeneratingViralVideo(false);
+  };
 
   // Toggle Tavus Raven-0 Live Webcam Perception (PiP)
   const toggleTavusVision = async () => {
@@ -773,25 +815,46 @@ export default function DemoPage() {
           )}
         </div>
 
-        {/* 2-TIER SELECTOR TABS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 3-TIER SELECTOR TABS (INCLUDING VIRAL $10 DEPOSIT AI CO-FOUNDER CLUB) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          <button
+            type="button"
+            onClick={() => setSelectedTier('cofounder')}
+            className={`text-left p-4 rounded-2xl border-2 transition-all relative ${
+              selectedTier === 'cofounder'
+                ? 'bg-amber-950/40 border-amber-500 shadow-lg shadow-amber-500/15'
+                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                🔥 Viral Entry • $29/mo Club
+              </span>
+              <span className="text-lg font-black text-amber-300">$10 Deposit</span>
+            </div>
+            <h3 className="text-sm font-bold text-white mb-1">🤖 Sealed AI Co-Founder Club</h3>
+            <p className="text-[11px] text-slate-400">
+              Your own 24/7 autonomous AI Co-Founder in a sealed cloud container + 9 Free GPUs ($0 token burn). $10 holds your $29/mo spot forever.
+            </p>
+          </button>
+
           <button
             type="button"
             onClick={() => setSelectedTier('basic')}
-            className={`text-left p-5 rounded-2xl border-2 transition-all ${
+            className={`text-left p-4 rounded-2xl border-2 transition-all ${
               selectedTier === 'basic'
                 ? 'bg-blue-950/40 border-blue-500 shadow-lg shadow-blue-500/10'
                 : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-black uppercase tracking-wider text-blue-400">
+              <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">
                 Tier 1 • Basic Feature
               </span>
               <span className="text-lg font-black text-white">$1,000</span>
             </div>
-            <h3 className="text-base font-bold text-white mb-1">📞 24/7 AI Voice Receptionist</h3>
-            <p className="text-xs text-slate-400">
+            <h3 className="text-sm font-bold text-white mb-1">📞 24/7 AI Voice Receptionist</h3>
+            <p className="text-[11px] text-slate-400">
               Real-time full-duplex phone &amp; audio dispatcher powered by Apple M5 GPU + Groq LPU. Answers on the 1st ring and books jobs 24/7.
             </p>
           </button>
@@ -799,20 +862,20 @@ export default function DemoPage() {
           <button
             type="button"
             onClick={() => setSelectedTier('avatar')}
-            className={`text-left p-5 rounded-2xl border-2 transition-all relative overflow-hidden ${
+            className={`text-left p-4 rounded-2xl border-2 transition-all relative overflow-hidden ${
               selectedTier === 'avatar'
                 ? 'bg-purple-950/40 border-purple-500 shadow-lg shadow-purple-500/20'
                 : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-                ✨ Tier 2 • Photorealistic Live Video Avatar
+              <span className="text-[10px] font-black uppercase tracking-wider text-purple-400 flex items-center gap-1">
+                ✨ Tier 2 • Live Video Avatar
               </span>
               <span className="text-lg font-black text-emerald-400">$2,500</span>
             </div>
-            <h3 className="text-base font-bold text-white mb-1">🎥 Real Phoneme Lip-Sync + Tavus Camera Vision</h3>
-            <p className="text-xs text-slate-400">
+            <h3 className="text-sm font-bold text-white mb-1">🎥 Real Lip-Sync + Tavus Vision</h3>
+            <p className="text-[11px] text-slate-400">
               True neural Wav2Lip-GAN lip &amp; teeth synthesis running at 65+ FPS on Apple M5 CoreML GPU + Tavus Raven-0 visual perception.
             </p>
           </button>
@@ -831,8 +894,8 @@ export default function DemoPage() {
             />
           </div>
 
-          {/* TIER 2 EXCLUSIVE: WAV2LIP-GAN + KOKORO-82M + TAVUS CVI LIVE VIDEO AVATAR */}
-          {selectedTier === 'avatar' && (
+          {/* TIER 2 & CO-FOUNDER VIDEO STUDIO: WAV2LIP-GAN + KOKORO-82M + TAVUS CVI LIVE VIDEO AVATAR */}
+          {(selectedTier === 'avatar' || selectedTier === 'cofounder') && (
             <div className="bg-gradient-to-b from-purple-950/30 to-slate-950 border border-purple-500/40 rounded-2xl p-5 space-y-5">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
@@ -848,6 +911,14 @@ export default function DemoPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={generatingViralVideo}
+                    onClick={generateViralSurvivalTikTok}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs px-3 py-2 rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                  >
+                    {generatingViralVideo ? '🎬 Rendering TikTok MP4...' : '🎬 Generate Viral TikTok Video'}
+                  </button>
                   <label className="cursor-pointer bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-3 py-2 rounded-xl transition-all shadow-lg shadow-purple-600/20">
                     📤 Upload Your Photo
                     <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
@@ -872,6 +943,21 @@ export default function DemoPage() {
                   </button>
                 </div>
               </div>
+
+              {viralVideoUrl && (
+                <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
+                  <div className="text-xs text-amber-200">
+                    <span className="font-black">🔥 Viral &ldquo;Survival AI Co-Founder&rdquo; TikTok MP4 Ready!</span> Lip-synced on Apple M5 GPU ({lastRenderMs || 990}ms).
+                  </div>
+                  <a
+                    href={viralVideoUrl}
+                    download="sovereign_ai_cofounder_tiktok.mp4"
+                    className="shrink-0 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs px-3 py-1.5 rounded-lg"
+                  >
+                    ⬇️ Download TikTok .MP4
+                  </a>
+                </div>
+              )}
 
               {webcamMirrorOpen && (
                 <div className="bg-slate-900 border border-purple-500/40 rounded-2xl p-4 flex flex-col items-center space-y-3">
@@ -1233,7 +1319,13 @@ export default function DemoPage() {
             >
               {loading === 'cashapp'
                 ? `Opening CashApp ($${activePrice.toLocaleString()})...`
-                : `💲 Deploy ${selectedTier === 'avatar' ? 'Live Video Avatar' : 'Basic Voice AI'} — Pay $${activePrice.toLocaleString()} with CashApp`}
+                : `💲 Deploy ${
+                    selectedTier === 'avatar'
+                      ? 'Live Video Avatar'
+                      : selectedTier === 'cofounder'
+                      ? 'AI Co-Founder Club ($29/mo Locked)'
+                      : 'Basic Voice AI'
+                  } — Pay $${activePrice.toLocaleString()} ${selectedTier === 'cofounder' ? 'Spot Deposit ' : ''}with CashApp`}
             </button>
 
             <button 
@@ -1244,7 +1336,13 @@ export default function DemoPage() {
             >
               {loading === 'stripe'
                 ? 'Generating Checkout...'
-                : `💳 Deploy ${selectedTier === 'avatar' ? 'Live Video Avatar' : 'Basic Voice AI'} — Pay $${activePrice.toLocaleString()} with Card`}
+                : `💳 Deploy ${
+                    selectedTier === 'avatar'
+                      ? 'Live Video Avatar'
+                      : selectedTier === 'cofounder'
+                      ? 'AI Co-Founder Club ($29/mo Locked)'
+                      : 'Basic Voice AI'
+                  } — Pay $${activePrice.toLocaleString()} ${selectedTier === 'cofounder' ? 'Spot Deposit ' : ''}with Card`}
             </button>
           </div>
           
