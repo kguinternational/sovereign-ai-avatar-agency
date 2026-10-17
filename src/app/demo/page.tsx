@@ -72,6 +72,14 @@ function encodeWavFromFloat32(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
+const GROK_VOICE_PROFILES = [
+  { id: 'ara', label: 'Ara', desc: 'Upbeat & Warm (Female)' },
+  { id: 'eve', label: 'Eve', desc: 'Calm Concierge (Female)' },
+  { id: 'sal', label: 'Sal', desc: 'Smooth Dispatcher (Female)' },
+  { id: 'rex', label: 'Rex', desc: 'Confident Director (Male)' },
+  { id: 'leo', label: 'Leo', desc: 'Executive Deep (Male)' },
+];
+
 export default function DemoPage() {
   const [selectedTier, setSelectedTier] = useState<'basic' | 'avatar'>('avatar');
   const [businessName, setBusinessName] = useState('');
@@ -81,6 +89,7 @@ export default function DemoPage() {
 
   // Open-Source HeyGen / Tavus CVI / Wav2Lip-GAN Avatar State
   const [selectedPreset, setSelectedPreset] = useState(AVATAR_PRESETS[0]);
+  const [selectedGrokVoice, setSelectedGrokVoice] = useState<string>('ara');
   const [customFaceUrl, setCustomFaceUrl] = useState<string | null>(null);
   const [webcamMirrorOpen, setWebcamMirrorOpen] = useState(false);
   const [tavusVisionEnabled, setTavusVisionEnabled] = useState(false);
@@ -115,6 +124,7 @@ export default function DemoPage() {
   const businessNameRef = useRef('');
   const selectedTierRef = useRef<'basic' | 'avatar'>('avatar');
   const selectedPresetRef = useRef(AVATAR_PRESETS[0]);
+  const selectedGrokVoiceRef = useRef<string>('ara');
   const customFaceUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -132,6 +142,10 @@ export default function DemoPage() {
   useEffect(() => {
     selectedPresetRef.current = selectedPreset;
   }, [selectedPreset]);
+
+  useEffect(() => {
+    selectedGrokVoiceRef.current = selectedGrokVoice;
+  }, [selectedGrokVoice]);
 
   useEffect(() => {
     customFaceUrlRef.current = customFaceUrl;
@@ -351,6 +365,7 @@ export default function DemoPage() {
             businessName: businessNameRef.current || 'Sunny Bliss Plumbing & AC',
             personaName: customFaceUrlRef.current ? 'Your Clone' : selectedPresetRef.current.name,
             avatarId: selectedPresetRef.current.id,
+            grokVoice: selectedGrokVoiceRef.current,
             wantVideo: selectedTierRef.current === 'avatar',
             customImageBase64: customFaceUrlRef.current,
             messages: turnsRef.current,
@@ -495,6 +510,7 @@ export default function DemoPage() {
           businessName: businessName.trim() || 'Sunny Bliss Plumbing & AC',
           personaName: customFaceUrl ? 'Your Clone' : selectedPreset.name,
           avatarId: selectedPreset.id,
+          grokVoice: selectedGrokVoice,
           wantVideo: selectedTier === 'avatar',
           customImageBase64: customFaceUrl,
           messages: [],
@@ -571,6 +587,7 @@ export default function DemoPage() {
           businessName: businessName || 'Sunny Bliss Plumbing & AC',
           personaName: customFaceUrl ? 'Your Clone' : selectedPreset.name,
           avatarId: selectedPreset.id,
+          grokVoice: selectedGrokVoice,
           wantVideo: selectedTier === 'avatar',
           customImageBase64: customFaceUrl,
           messages: nextTurns,
@@ -776,6 +793,9 @@ export default function DemoPage() {
                       onClick={() => {
                         setCustomFaceUrl(null);
                         setSelectedPreset(preset);
+                        setSelectedGrokVoice(
+                          preset.id === 'marcus-ops' ? 'rex' : preset.id === 'elena-vip' ? 'eve' : 'ara'
+                        );
                       }}
                       className={`p-2.5 rounded-xl border text-left transition-all flex items-center gap-2.5 ${
                         isSelected
@@ -867,14 +887,14 @@ export default function DemoPage() {
 
                 <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-[10px] font-mono text-emerald-300 z-10">
                   {lastRenderMs
-                    ? `M5 COREML WAV2LIP-GAN • ${lastRenderMs}ms`
-                    : 'M5 COREML WAV2LIP-GAN • 65+ FPS'}
+                    ? `M5 VIDEOTOOLBOX WAV2LIP-GAN • ${lastRenderMs}ms`
+                    : 'M5 VIDEOTOOLBOX WAV2LIP-GAN • 65+ FPS'}
                 </div>
 
                 <div className="absolute bottom-3 inset-x-3 flex items-center justify-between bg-black/75 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 z-10">
                   <div className="text-xs font-bold text-white flex items-center gap-2">
                     {isSpeaking ? (
-                      <span className="text-purple-300">🔊 Speaking live (Wav2Lip-GAN neural lip-sync)...</span>
+                      <span className="text-purple-300">🔊 Speaking live (interrupt anytime — Grok 3.0 Barge-In ON)...</span>
                     ) : userTalking ? (
                       <span className="text-emerald-400">🎤 Hearing your voice...</span>
                     ) : isProcessing ? (
@@ -908,20 +928,20 @@ export default function DemoPage() {
             </div>
           )}
 
-          {/* FULL-DUPLEX REALTIME VOICE INTERFACE */}
+          {/* FULL-DUPLEX REALTIME VOICE INTERFACE + GROK VOICE 3.0 5-PERSONA SELECTOR */}
           <div className="bg-slate-950/90 border border-blue-500/30 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    🎙️ {selectedTier === 'avatar' ? 'Live Audio & Transcript Feed' : 'Tier 1: Live Full-Duplex Voice Line ("Sarah")'}
+                    🎙️ {selectedTier === 'avatar' ? 'Live Audio & Grok Voice 3.0 Engine' : 'Tier 1: Live Full-Duplex Voice Line'}
                   </h2>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
-                    ⚡ Zero AbortError • 16kHz PCM
+                    ⚡ Grok 3.0 Barge-In • M5 GPU Voices
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Hands-free open mic—just speak naturally after Sarah finishes talking.
+                  Full-duplex open mic with mid-sentence Barge-In interruption—choose any of the 5 Grok 3.0 Neural Voices below.
                 </p>
               </div>
               {!callActive ? (
@@ -941,6 +961,31 @@ export default function DemoPage() {
                   Hang Up
                 </button>
               )}
+            </div>
+
+            {/* 5 GROK VOICE 3.0 NEURAL PERSONAS (Ara, Eve, Sal, Rex, Leo) */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1">
+              {GROK_VOICE_PROFILES.map((v) => {
+                const active = selectedGrokVoice === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setSelectedGrokVoice(v.id)}
+                    className={`p-2 rounded-xl border text-left transition-all ${
+                      active
+                        ? 'bg-blue-950/60 border-blue-400 text-white shadow-md shadow-blue-500/10'
+                        : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="text-xs font-black flex items-center justify-between">
+                      <span>🔊 {v.label}</span>
+                      {active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                    </div>
+                    <div className="text-[10px] opacity-80 truncate">{v.desc}</div>
+                  </button>
+                );
+              })}
             </div>
 
             {callActive && (
