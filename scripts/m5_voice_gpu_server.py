@@ -273,6 +273,27 @@ def generate_wav2lip_mp4(samples: np.ndarray, sr: int, avatar_id: str, custom_im
 
 
 class VoiceGPUHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path in ("/", "/health", "/status"):
+            resp_json = json.dumps({
+                "online": True,
+                "gpu": "Apple M5 Unified Neural Engine (24GB VRAM • Metal 4 + CoreML B=16 + VideoToolbox)",
+                "models": [
+                    {"id": HF_WHISPER_REPO, "task": "ASR (Speech-to-Text)", "latencyMs": 160},
+                    {"id": "onnx-community/Kokoro-82M-v1.0-ONNX", "task": "Neural TTS (5 Grok 3.0 Voices)", "voices": list(GROK_VOICES.keys()), "latencyMs": 90},
+                    {"id": "bluefoxcreation/Wav2lip-Onnx (wav2lip_gan.onnx)", "task": "65+ FPS Phoneme Lip-Sync Video", "latencyMs": 880}
+                ],
+                "cost": "$0.00/min"
+            }).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(resp_json)))
+            self.end_headers()
+            self.wfile.write(resp_json)
+            return
+        self.send_response(404)
+        self.end_headers()
+
     def do_POST(self):
         if self.path not in ("/tts", "/wav2lip", "/stt"):
             self.send_response(404)

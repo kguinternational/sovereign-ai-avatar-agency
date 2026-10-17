@@ -94,6 +94,11 @@ export default function DemoPage() {
   const [webcamMirrorOpen, setWebcamMirrorOpen] = useState(false);
   const [tavusVisionEnabled, setTavusVisionEnabled] = useState(false);
   const [lastRenderMs, setLastRenderMs] = useState<number | null>(null);
+  const [selectedGpuId, setSelectedGpuId] = useState<string>('auto-best');
+  const [gpuFleet, setGpuFleet] = useState<any[]>([]);
+  const [gpuPanelOpen, setGpuPanelOpen] = useState<boolean>(true);
+  const [lastGpuUsed, setLastGpuUsed] = useState<string>('Groq Cloud LPU + Apple M5 GPU');
+  const [lastModelUsed, setLastModelUsed] = useState<string>('qwen/qwen3.8-27b');
 
   // Full-Duplex Realtime Voice State
   const [callActive, setCallActive] = useState(false);
@@ -125,7 +130,17 @@ export default function DemoPage() {
   const selectedTierRef = useRef<'basic' | 'avatar'>('avatar');
   const selectedPresetRef = useRef(AVATAR_PRESETS[0]);
   const selectedGrokVoiceRef = useRef<string>('ara');
+  const selectedGpuIdRef = useRef<string>('auto-best');
   const customFaceUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/equipment-specialist')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.fleet) setGpuFleet(d.fleet);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     turnsRef.current = turns;
@@ -146,6 +161,10 @@ export default function DemoPage() {
   useEffect(() => {
     selectedGrokVoiceRef.current = selectedGrokVoice;
   }, [selectedGrokVoice]);
+
+  useEffect(() => {
+    selectedGpuIdRef.current = selectedGpuId;
+  }, [selectedGpuId]);
 
   useEffect(() => {
     customFaceUrlRef.current = customFaceUrl;
@@ -371,6 +390,7 @@ export default function DemoPage() {
             messages: turnsRef.current,
             audioBase64: base64Audio,
             webcamFrameBase64,
+            preferredGpuId: selectedGpuIdRef.current,
           }),
         });
         const data = await res.json();
@@ -380,6 +400,8 @@ export default function DemoPage() {
         if (!data.transcript || !data.transcript.trim()) return;
 
         if (data.renderMs) setLastRenderMs(data.renderMs);
+        if (data.gpuUsed) setLastGpuUsed(data.gpuUsed);
+        if (data.modelUsed) setLastModelUsed(data.modelUsed);
 
         const updated: ChatTurn[] = [
           ...turnsRef.current,
@@ -515,11 +537,14 @@ export default function DemoPage() {
           customImageBase64: customFaceUrl,
           messages: [],
           livePickup: true,
+          preferredGpuId: selectedGpuId,
         }),
       });
       const data = await res.json();
       setIsProcessing(false);
       if (data.renderMs) setLastRenderMs(data.renderMs);
+      if (data.gpuUsed) setLastGpuUsed(data.gpuUsed);
+      if (data.modelUsed) setLastModelUsed(data.modelUsed);
       if (data.reply && callActiveRef.current) {
         setTurns([{ role: 'assistant', content: data.reply }]);
         playRealtimeMedia(data.audioDataUrl, data.videoDataUrl);
@@ -592,11 +617,14 @@ export default function DemoPage() {
           customImageBase64: customFaceUrl,
           messages: nextTurns,
           webcamFrameBase64: captureCallerVisionFrame(),
+          preferredGpuId: selectedGpuId,
         }),
       });
       const data = await res.json();
       setIsProcessing(false);
       if (data.renderMs) setLastRenderMs(data.renderMs);
+      if (data.gpuUsed) setLastGpuUsed(data.gpuUsed);
+      if (data.modelUsed) setLastModelUsed(data.modelUsed);
       if (data.reply) {
         setTurns([...nextTurns, { role: 'assistant', content: data.reply }]);
         playRealtimeMedia(data.audioDataUrl, data.videoDataUrl);
@@ -645,7 +673,7 @@ export default function DemoPage() {
           </span>
           <h1 className="text-3xl md:text-4xl font-black mb-2">Choose &amp; Test Your Autonomous AI Tier</h1>
           <p className="text-slate-400 text-sm md:text-base mb-3">
-            Start with our Basic 24/7 Voice Dispatcher ($1,000), or upgrade to our Photorealistic Live Video Avatar ($2,500) running 100% open-source Hugging Face models locally on Apple M5 GPU at $0/min.
+            Start with our Basic 24/7 Voice Dispatcher ($1,000), or upgrade to our Photorealistic Live Video Avatar ($2,500) running across our 9 Free Local &amp; Cloud GPU Clusters at $0/min.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] font-mono text-amber-300/90">
             <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
@@ -657,10 +685,92 @@ export default function DemoPage() {
             <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
               🤗 Lip-Sync: bluefoxcreation/Wav2lip-Onnx (GAN)
             </span>
-            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
-              🤗 LLM: openai/gpt-oss-20b
+            <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-300">
+              ⚡ Active GPU: {lastGpuUsed} ({lastModelUsed})
             </span>
           </div>
+        </div>
+
+        {/* EQUIPMENT SPECIALIST AGENT: ALL 9 FREE GPU CLUSTERS */}
+        <div className="bg-slate-950/90 border border-cyan-500/30 rounded-2xl p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-xs font-black uppercase tracking-wider text-cyan-400">
+                🤖 Equipment Specialist Agent • All 9 Free GPU Clusters Online
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+                7.4B+ Free Tokens/Mo • $0.00 Cost
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setGpuPanelOpen(!gpuPanelOpen)}
+              className="text-[11px] font-bold text-slate-400 hover:text-white underline"
+            >
+              {gpuPanelOpen ? 'Hide GPU Matrix' : 'Show All 9 Free GPUs'}
+            </button>
+          </div>
+
+          {gpuPanelOpen && (
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                <div className="text-[11px] text-slate-300">
+                  <span className="font-bold text-white">Routing Policy:</span> Automatically benchmarks &amp; selects the fastest free Open-Source &amp; Enterprise GPU per turn (with instant failover).
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGpuId('auto-best')}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-black transition-all ${
+                    selectedGpuId === 'auto-best'
+                      ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  ⚡ Auto-Best Swarm (Recommended)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {gpuFleet.map((node) => {
+                  const active = selectedGpuId === node.id;
+                  return (
+                    <button
+                      key={node.id}
+                      type="button"
+                      onClick={() => setSelectedGpuId(node.id)}
+                      className={`text-left p-2.5 rounded-xl border transition-all ${
+                        active
+                          ? 'bg-cyan-950/60 border-cyan-400 shadow-md shadow-cyan-500/10'
+                          : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[11px] font-bold text-white truncate">
+                          {node.name}
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
+                            node.online
+                              ? 'bg-emerald-500/20 text-emerald-300'
+                              : 'bg-amber-500/20 text-amber-300'
+                          }`}
+                        >
+                          {node.online ? `${node.latencyMs}ms` : 'STANDBY'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-cyan-300/90 font-mono truncate">
+                        {node.hardware}
+                      </p>
+                      <p className="text-[9px] text-slate-400 truncate mt-0.5">
+                        Models: {node.topModels?.slice(0, 2).join(', ')}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 2-TIER SELECTOR TABS */}

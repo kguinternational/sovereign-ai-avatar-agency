@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { runEquipmentSpecialistInference } from '@/lib/equipmentSpecialist';
 
 async function transcribeUserAudio(audioBase64: string): Promise<string> {
   const groqKey = process.env.GROK_API_KEY || process.env.GROQ_API_KEY;
@@ -180,6 +181,7 @@ export async function POST(req: Request) {
       audioBase64,
       webcamFrameBase64,
       livePickup,
+      preferredGpuId,
     } = await req.json();
     const company = businessName?.trim() || 'Sunny Bliss Plumbing & AC';
     const agentName = personaName?.split(' ')[0] || 'Sarah';
@@ -210,100 +212,15 @@ CRITICAL RULES FOR REALTIME CONVERSATION:
 3. If visual camera context is provided (Tavus Raven-0 Vision Mode), naturally acknowledge what you see the caller doing or holding up on camera!
 4. Never use markdown, bullet points, or emojis. Speak pure conversational English.`;
 
-    const groqKey = process.env.GROK_API_KEY || process.env.GROQ_API_KEY;
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    // EQUIPMENT SPECIALIST AGENT: Automatically routes across all 9 Free Local & Cloud GPU Clusters
+    const specialistResult = await runEquipmentSpecialistInference({
+      systemPrompt,
+      messages: updatedMessages,
+      webcamFrameBase64,
+      preferredGpuId,
+    });
 
-    let replyText = '';
-
-    // TAVUS RAVEN-0 VISUAL PERCEPTION MODE: If caller's live webcam frame is attached, use multimodal vision!
-    if (webcamFrameBase64 && openRouterKey) {
-      const lastUserMsg = updatedMessages[updatedMessages.length - 1]?.content || 'Hello!';
-      const priorHistory = updatedMessages.slice(0, -1);
-      try {
-        const visionRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openRouterKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'openai/gpt-4o-mini',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              ...priorHistory,
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Caller said: "${lastUserMsg}" (You can also see their live webcam feed attached—if they are showing something or reacting visually, mention it naturally in 1 short sentence!)`,
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: webcamFrameBase64 },
-                  },
-                ],
-              },
-            ],
-            max_tokens: 60,
-          }),
-        });
-        if (visionRes.ok) {
-          const vData = await visionRes.json();
-          replyText = vData.choices?.[0]?.message?.content?.trim() || '';
-        }
-      } catch (e) {
-        console.error('[Tavus Vision Error]', e);
-      }
-    }
-
-    // ULTRA-FAST 400ms GROQ LPU ('openai/gpt-oss-20b')
-    if (!replyText && groqKey && groqKey.startsWith('gsk_')) {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-oss-20b',
-          reasoning_effort: 'low',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...updatedMessages,
-          ],
-          temperature: 0.7,
-          max_tokens: 250,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        replyText = data.choices?.[0]?.message?.content?.trim() || '';
-      }
-    }
-
-    // OpenRouter fallback
-    if (!replyText && openRouterKey) {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openRouterKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...updatedMessages,
-          ],
-          max_tokens: 60,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        replyText = data.choices?.[0]?.message?.content?.trim() || '';
-      }
-    }
+    const replyText = specialistResult.replyText;
 
     const { audioDataUrl, videoDataUrl, renderMs } = replyText
       ? await synthesizeHumanAudioAndVideo(
@@ -321,9 +238,13 @@ CRITICAL RULES FOR REALTIME CONVERSATION:
       audioDataUrl,
       videoDataUrl,
       renderMs,
+      gpuNodeId: specialistResult.gpuNodeId,
+      gpuUsed: specialistResult.gpuName,
+      modelUsed: specialistResult.modelUsed,
+      llmLatencyMs: specialistResult.latencyMs,
       engine: wantVideo
-        ? 'Wav2Lip-GAN + Kokoro-82M • Apple M5 CoreML GPU (65+ FPS)'
-        : 'Real-Time Full-Duplex • Apple M5 GPU + Groq LPU',
+        ? `${specialistResult.gpuName} (${specialistResult.modelUsed}) + Apple M5 Wav2Lip-GAN (65+ FPS)`
+        : `${specialistResult.gpuName} (${specialistResult.modelUsed}) + Apple M5 Kokoro-82M`,
     });
   } catch (error: any) {
     console.error('[VOICE DEMO ERROR]', error);
