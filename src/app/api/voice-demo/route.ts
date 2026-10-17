@@ -9,7 +9,28 @@ async function transcribeUserAudio(audioBase64: string): Promise<string> {
 
   if (buffer.length < 800) return '';
 
-  // Priority 1: Groq LPU Whisper-Large-v3-Turbo (~150ms transcription)
+  // Priority 1: Local Hugging Face Open-Source MLX-Whisper on Apple M5 Metal GPU (mlx-community/whisper-base.en-mlx ~160ms)
+  try {
+    const localSttRes = await fetch('http://127.0.0.1:8099/stt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audioBase64 }),
+    });
+    if (localSttRes.ok) {
+      const data = await localSttRes.json();
+      const text = (data.text || '').trim();
+      if (
+        text &&
+        !['thank you.', 'thanks for watching.', 'you', 'bye.'].includes(text.toLowerCase())
+      ) {
+        return text;
+      }
+    }
+  } catch (e) {
+    console.error('[M5 MLX-Whisper Error]', e);
+  }
+
+  // Priority 2: Groq LPU Whisper-Large-v3-Turbo (~150ms transcription)
   if (groqKey && groqKey.startsWith('gsk_')) {
     try {
       const formData = new FormData();

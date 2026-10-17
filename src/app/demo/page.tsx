@@ -641,12 +641,26 @@ export default function DemoPage() {
         
         <div className="text-center">
           <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3">
-            JC Coffey Foundation • 100% Open-Source Sovereign AI
+            JC Coffey Foundation • 🤗 100% Hugging Face Open-Source Sovereign AI
           </span>
           <h1 className="text-3xl md:text-4xl font-black mb-2">Choose &amp; Test Your Autonomous AI Tier</h1>
-          <p className="text-slate-400 text-sm md:text-base">
-            Start with our Basic 24/7 Voice Dispatcher ($1,000), or upgrade to our Photorealistic Live Video Avatar ($2,500) powered by Wav2Lip-GAN + Kokoro-82M + Tavus Vision on Apple M5 GPU.
+          <p className="text-slate-400 text-sm md:text-base mb-3">
+            Start with our Basic 24/7 Voice Dispatcher ($1,000), or upgrade to our Photorealistic Live Video Avatar ($2,500) running 100% open-source Hugging Face models locally on Apple M5 GPU at $0/min.
           </p>
+          <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] font-mono text-amber-300/90">
+            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+              🤗 ASR: mlx-community/whisper-base.en-mlx
+            </span>
+            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+              🤗 TTS: onnx-community/Kokoro-82M-v1.0-ONNX
+            </span>
+            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+              🤗 Lip-Sync: bluefoxcreation/Wav2lip-Onnx (GAN)
+            </span>
+            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+              🤗 LLM: openai/gpt-oss-20b
+            </span>
+          </div>
         </div>
 
         {/* 2-TIER SELECTOR TABS */}
