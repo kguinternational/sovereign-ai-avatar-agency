@@ -131,23 +131,24 @@ export const FREE_GPU_FLEET: FreeGPUNode[] = [
   },
   {
     id: 'llm7-free-gateway',
-    name: 'LLM7.io Keyless Enterprise & Open-Source GPU Pool',
-    provider: 'LLM7 Keyless Gateway (66 Free Models)',
-    hardware: 'Distributed Enterprise GPU Cluster',
-    vram: 'Shared H100 / A100 Pool',
+    name: 'LLM7.io Keyless Claude Opus 5.5 & Fable 5.1 GPU Pool',
+    provider: 'LLM7 Keyless Gateway (67 Free Models • Claude Opus 5.5 + Fable 5.1)',
+    hardware: 'Distributed Enterprise GPU Cluster (Claude Code Ready)',
+    vram: 'Shared H100 / B200 Pool',
     type: 'free_aggregator',
     endpoint: 'https://api.llm7.io/v1',
     cost: '$0.00 Keyless Free',
     requiresCard: false,
     topModels: [
+      'claude-opus-5-5',
+      'claude-fable-5-1',
+      'anthropic/claude-sonnet-5-5',
+      'anthropic/claude-opus-4-8',
       'DeepSeek-V4.1-Flash',
-      'DeepSeek-V4-Flash-0731',
       'GLM-5.3-Flash',
-      'Voxtral-Small-24B-2507',
-      'L3-8B-Lunaris-v1-Turbo',
     ],
     capabilities: ['llm'],
-    latencyMs: 790,
+    latencyMs: 690,
   },
   {
     id: 'kilo-free-gateway',
@@ -398,6 +399,26 @@ export async function runEquipmentSpecialistInference(params: {
       timeoutMs: 6500,
     });
   }
+
+  // LLM7.io Keyless Free Claude Opus 5.5 & Fable 5.1 Pool
+  candidates.push(
+    {
+      gpuNodeId: 'llm7-free-gateway',
+      gpuName: 'LLM7 Keyless Free GPU (Claude Opus 5.5)',
+      url: 'https://api.llm7.io/v1/chat/completions',
+      model: 'claude-opus-5-5',
+      headers: { Authorization: 'Bearer unused' },
+      timeoutMs: 6500,
+    },
+    {
+      gpuNodeId: 'llm7-free-gateway',
+      gpuName: 'LLM7 Keyless Free GPU (Claude Fable 5.1)',
+      url: 'https://api.llm7.io/v1/chat/completions',
+      model: 'claude-fable-5-1',
+      headers: { Authorization: 'Bearer unused' },
+      timeoutMs: 6500,
+    }
+  );
 
   // Local Apple M5 EXO Cluster (:52415) & Ollama (:11434)
   candidates.push(
